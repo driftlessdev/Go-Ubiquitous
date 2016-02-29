@@ -133,7 +133,7 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
             mCalendar = new GregorianCalendar();
 
             mTimeFormat = new SimpleDateFormat("HH:mm");
-            mDateFormat = new SimpleDateFormat("EEE, MMM d, yyyy");
+            mDateFormat = new SimpleDateFormat("EEE, MMM d yyyy");
         }
 
         @Override
@@ -257,8 +257,6 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
             x = centerX - dateWidth / 2;
             y = centerX + textOffset;
             canvas.drawText(dateText, x, y, mDatePaint);
-
-            // Center + Offset Date Height + offset
         }
 
         /**
