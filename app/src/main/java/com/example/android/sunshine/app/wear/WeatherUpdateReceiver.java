@@ -3,9 +3,12 @@ package com.example.android.sunshine.app.wear;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.database.Cursor;
 import android.os.Bundle;
 import android.util.Log;
 
+import com.example.android.sunshine.app.Utility;
+import com.example.android.sunshine.app.data.WeatherContract;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.ResultCallback;
@@ -15,6 +18,7 @@ import com.google.android.gms.wearable.PutDataMapRequest;
 import com.google.android.gms.wearable.PutDataRequest;
 import com.google.android.gms.wearable.Wearable;
 
+import java.util.Calendar;
 import java.util.Random;
 
 /**
@@ -33,6 +37,21 @@ public class WeatherUpdateReceiver extends BroadcastReceiver
     public static final String KEY_TODAY_HIGH = "HighToday";
     public static final String KEY_TODAY_LOW = "LowToday";
     public static final String KEY_TODAY_COND = "CondToday";
+
+    private static final String[] WEAR_COLUMNS = {
+            WeatherContract.WeatherEntry.TABLE_NAME + "." + WeatherContract.WeatherEntry._ID,
+            WeatherContract.WeatherEntry.COLUMN_DATE,
+            WeatherContract.WeatherEntry.COLUMN_MAX_TEMP,
+            WeatherContract.WeatherEntry.COLUMN_MIN_TEMP,
+            WeatherContract.WeatherEntry.COLUMN_WEATHER_ID,
+    };
+
+    public static final int COL_WEATHER_ID = 0;
+    public static final int COL_WEATHER_DATE = 1;
+    public static final int COL_WEATHER_MAX_TEMP = 2;
+    public static final int COL_WEATHER_MIN_TEMP = 3;
+    public static final int COL_WEATHER_CONDITION_ID = 4;
+
     @Override
     public void onConnected(Bundle bundle) {
         sendWeatherUpdate();
@@ -61,16 +80,40 @@ public class WeatherUpdateReceiver extends BroadcastReceiver
 
     private void sendWeatherUpdate()
     {
+
+        String locationSetting = Utility.getPreferredLocation(mContext);
+
+        Cursor data = mContext.getContentResolver().query(
+                WeatherContract.WeatherEntry.buildWeatherLocationWithDate(locationSetting, Calendar.getInstance().getTimeInMillis())
+                , WEAR_COLUMNS
+                , null
+                , null
+                , null
+        );
+
+        if(data == null)
+            return;
+
+        if(!data.moveToFirst())
+        {
+            data.close();
+            return;
+        }
+
+        int weatherId = data.getInt(COL_WEATHER_CONDITION_ID);
+        double high = data.getDouble(COL_WEATHER_MAX_TEMP);
+        String highString = Utility.formatTemperature(mContext, high);
+        double low = data.getDouble(COL_WEATHER_MIN_TEMP);
+        String lowString = Utility.formatTemperature(mContext, low);
+
         Random random = new Random();
 
         PutDataMapRequest putDataMapRequest = PutDataMapRequest.create(PATH_WEATHER_UPDATE);
         DataMap weather = putDataMapRequest.getDataMap();
 
-        Log.d(LOG_TAG, "Previous data: High: " + weather.getDouble(KEY_TODAY_HIGH) + " Low: " + weather.getDouble(KEY_TODAY_LOW) + " Cond: " + weather.getString(KEY_TODAY_COND));
-
-        weather.putDouble(KEY_TODAY_HIGH, 42.2);
-        weather.putDouble(KEY_TODAY_LOW, 20.7);
-        weather.putString(KEY_TODAY_COND, "ACK!");
+        weather.putString(KEY_TODAY_HIGH, highString);
+        weather.putString(KEY_TODAY_LOW, lowString);
+        weather.putInt(KEY_TODAY_COND, weatherId);
 
         PutDataRequest putDataRequest = putDataMapRequest.asPutDataRequest();
         com.google.android.gms.common.api.PendingResult<DataApi.DataItemResult> pendingResult = Wearable.DataApi.putDataItem(mGoogleApiClient, putDataRequest);

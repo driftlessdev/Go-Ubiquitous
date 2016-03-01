@@ -379,7 +379,7 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
                 if(PATH_WEATHER_UPDATE.equals(path))
                 {
                     DataMap weather = DataMap.fromByteArray(event.getDataItem().getData());
-                    Log.d(LOG_TAG, "High: " + weather.getDouble(KEY_TODAY_HIGH) + " Low: " + weather.getDouble(KEY_TODAY_LOW) + " Cond: " + weather.getString(KEY_TODAY_COND));
+                    Log.d(LOG_TAG, "High: " + weather.getString(KEY_TODAY_HIGH) + " Low: " + weather.getString(KEY_TODAY_LOW) + " Cond: " + weather.getInt(KEY_TODAY_COND));
                 }
             }
         }
