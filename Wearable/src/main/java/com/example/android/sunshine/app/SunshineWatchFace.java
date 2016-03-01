@@ -26,6 +26,7 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.Typeface;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -38,6 +39,9 @@ import android.view.WindowInsets;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.ResultCallback;
+import com.google.android.gms.wearable.DataApi;
+import com.google.android.gms.wearable.DataEvent;
+import com.google.android.gms.wearable.DataEventBuffer;
 import com.google.android.gms.wearable.DataMap;
 import com.google.android.gms.wearable.MessageApi;
 import com.google.android.gms.wearable.MessageEvent;
@@ -58,6 +62,7 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
             Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL);
     public static final String PATH_WEATHER_REQUEST = "/WearWeatherService/Request";
     public static final String PATH_WEATHER_REPLY = "/WearWeatherService/Reply";
+    public static final String PATH_WEATHER_UPDATE = "/WearWeatherService/Update";
     public static final String KEY_TODAY_HIGH = "HighToday";
     public static final String KEY_TODAY_LOW = "LowToday";
     public static final String KEY_TODAY_COND = "CondToday";
@@ -102,7 +107,8 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
             implements
             GoogleApiClient.OnConnectionFailedListener
             ,GoogleApiClient.ConnectionCallbacks
-            ,MessageApi.MessageListener{
+            ,MessageApi.MessageListener
+            ,DataApi.DataListener{
         final Handler mUpdateTimeHandler = new EngineHandler(this);
         boolean mRegisteredTimeZoneReceiver = false;
         Paint mBackgroundPaint;
@@ -240,7 +246,6 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
         public void onTimeTick() {
             super.onTimeTick();
             invalidate();
-            requestWeatherData();
         }
 
         @Override
@@ -324,6 +329,7 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
             Log.d(LOG_TAG, "onConnected");
 
             Wearable.MessageApi.addListener(mGoogleApiClient, this);
+            Wearable.DataApi.addListener(mGoogleApiClient, this);
         }
 
         @Override
@@ -361,6 +367,21 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
                         Log.d(LOG_TAG, "SendMessageResult: " + sendMessageResult.getStatus());
                     }
                 });
+        }
+
+        @Override
+        public void onDataChanged(DataEventBuffer dataEventBuffer) {
+            Log.d(LOG_TAG, "onDataChanged" + dataEventBuffer.toString());
+
+            for (DataEvent event : dataEventBuffer) {
+                Uri uri = event.getDataItem().getUri();
+                String path = uri.getPath();
+                if(PATH_WEATHER_UPDATE.equals(path))
+                {
+                    DataMap weather = DataMap.fromByteArray(event.getDataItem().getData());
+                    Log.d(LOG_TAG, "High: " + weather.getDouble(KEY_TODAY_HIGH) + " Low: " + weather.getDouble(KEY_TODAY_LOW) + " Cond: " + weather.getString(KEY_TODAY_COND));
+                }
+            }
         }
     }
 }
