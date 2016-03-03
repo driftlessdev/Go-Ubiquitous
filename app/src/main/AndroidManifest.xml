@@ -171,6 +171,9 @@
                 android:resource="@xml/widget_info_detail"/>
         </receiver>
 
+        <service android:name=".wear.WearUpdateService"
+                 android:exported="false"/>
+
         <service
             android:name=".widget.DetailWidgetRemoteViewsService"
             android:enabled="@bool/widget_detail_enabled"
