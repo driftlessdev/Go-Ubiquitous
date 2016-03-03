@@ -33,9 +33,9 @@ public class WearUpdateService extends IntentService
 {
     private static final String LOG_TAG = WearUpdateService.class.getSimpleName();
     private GoogleApiClient mGoogleApiClient;
-    public static final String PATH_WEATHER_REQUEST = "/WearWeatherService/Request";
-    public static final String PATH_WEATHER_REPLY = "/WearWeatherService/Reply";
-    public static final String PATH_WEATHER_UPDATE = "/WearWeatherService/Update";
+    public static final String PATH_WEATHER_REQUEST = "/WearUpdateService/Request";
+    public static final String PATH_WEATHER_REPLY = "/WearUpdateService/Reply";
+    public static final String PATH_WEATHER_UPDATE = "/WearUpdateService/Update";
     public static final String KEY_TODAY_HIGH = "HighToday";
     public static final String KEY_TODAY_LOW = "LowToday";
     public static final String KEY_TODAY_COND = "CondToday";

@@ -96,6 +96,12 @@
                 android:resource="@xml/authenticator"/>
         </service>
 
+        <service android:name=".wear.SunshineWearListenerService">
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.BIND_LISTENER"/>
+            </intent-filter>
+        </service>
+
         <!-- The SyncAdapter service -->
         <service
             android:name=".sync.SunshineSyncService"

@@ -8,4 +8,5 @@
 
     <dimen name="date_text_size">16dp</dimen>
     <dimen name="date_text_size_round">20dp</dimen>
+    <dimen name="weather_icon_size">50dp</dimen>
 </resources>
