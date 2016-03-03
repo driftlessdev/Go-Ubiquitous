@@ -46,6 +46,8 @@ import com.google.android.gms.wearable.Asset;
 import com.google.android.gms.wearable.DataApi;
 import com.google.android.gms.wearable.DataEvent;
 import com.google.android.gms.wearable.DataEventBuffer;
+import com.google.android.gms.wearable.DataItem;
+import com.google.android.gms.wearable.DataItemBuffer;
 import com.google.android.gms.wearable.DataMap;
 import com.google.android.gms.wearable.DataMapItem;
 import com.google.android.gms.wearable.MessageApi;
@@ -141,10 +143,12 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
         float mLowYOffset;
         float mIconSize;
 
-        String mHigh = "00";
-        String mLow = "00";
+        String mHigh = "";
+        String mLow = "";
         Bitmap mIcon;
         float mBottomInsetHeight = 0;
+        long mLastUpdateInstant = 0;
+        private final long UPDATE_INTERVAL = TimeUnit.MINUTES.toMillis(30);
 
         /**
          * Whether the display supports fewer bits for each color in ambient mode. When true, we
@@ -188,8 +192,6 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
                     .addApi(Wearable.API)
                     .build();
             mGoogleApiClient.connect();
-
-            requestWeatherUpdate();
         }
 
         @Override
@@ -252,7 +254,6 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
                     ? R.dimen.digital_text_size_round : R.dimen.digital_text_size);
 
             mTextPaint.setTextSize(textSize);
-            Log.d(LOG_TAG, "Time Ascent: " + mTextPaint.ascent() + " Descent: " + mTextPaint.descent());
             mTimeYOffset = (mTextPaint.descent() + mTextPaint.ascent()) / 2;
 
             textSize = resources.getDimension(isRound ? R.dimen.date_text_size_round : R.dimen.date_text_size);
@@ -275,6 +276,10 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
         @Override
         public void onTimeTick() {
             super.onTimeTick();
+            if(mLastUpdateInstant == 0 || (mLastUpdateInstant + UPDATE_INTERVAL < mCalendar.getTimeInMillis()))
+            {
+                requestWeatherUpdate();
+            }
             invalidate();
         }
 
@@ -331,15 +336,13 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
             float tempWidth = mHighPaint.measureText(mHigh);
             x = centerX - mIconSize / 2 - tempWidth - textOffset;
             y = baseY - mHighYOffset;
-            Log.d(LOG_TAG, "X: " + x + " Y: " + y);
             canvas.drawText(mHigh, x, y, mHighPaint);
 
-            tempWidth = mLowPaint.measureText(mLow);
             x = centerX + mIconSize / 2 + textOffset;
             y = baseY - mLowYOffset;
             canvas.drawText(mLow, x, y, mLowPaint);
 
-            if(mIcon != null)
+            if(!isInAmbientMode() && mIcon != null)
             {
                 x = centerX - mIcon.getWidth() / 2;
                 y = height * 0.75f - mBottomInsetHeight - mIcon.getHeight() / 2;
@@ -384,6 +387,7 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
         @Override
         public void onConnected(Bundle bundle) {
             Log.d(LOG_TAG, "onConnected");
+            getWeather();
 
             Wearable.DataApi.addListener(mGoogleApiClient, this);
         }
@@ -426,14 +430,37 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
                 {
                     DataMapItem dataMapItem = DataMapItem.fromDataItem(event.getDataItem());
                     DataMap weather = dataMapItem.getDataMap();
-                    mHigh = weather.getString(KEY_TODAY_HIGH);
-                    mLow = weather.getString(KEY_TODAY_LOW);
-                    Asset icon = weather.getAsset(KEY_TODAY_ICON);
-                    loadBitmapFromAsset(icon);
-                    Log.d(LOG_TAG, "High: " + weather.getString(KEY_TODAY_HIGH) + " Low: " + weather.getString(KEY_TODAY_LOW) + " Cond: " + weather.getInt(KEY_TODAY_COND));
-                    invalidate();
+                    loadWeather(weather);
                 }
             }
+        }
+
+        private void getWeather()
+        {
+            Wearable.DataApi.getDataItems(mGoogleApiClient).setResultCallback(new ResultCallback<DataItemBuffer>() {
+                @Override
+                public void onResult(DataItemBuffer dataItems) {
+                    for (DataItem dataItem : dataItems) {
+                        Uri uri = dataItem.getUri();
+                        if (uri.getPath().equals(PATH_WEATHER_UPDATE)) {
+                            Log.d(LOG_TAG, "Loading weather data from URI: " + dataItem.toString());
+                            loadWeather(DataMapItem.fromDataItem(dataItem).getDataMap());
+                            break;
+                        }
+                    }
+                }
+            });
+        }
+
+        private void loadWeather(DataMap weather)
+        {
+            mHigh = weather.getString(KEY_TODAY_HIGH);
+            mLow = weather.getString(KEY_TODAY_LOW);
+            Asset icon = weather.getAsset(KEY_TODAY_ICON);
+            loadBitmapFromAsset(icon);
+            Log.d(LOG_TAG, "High: " + weather.getString(KEY_TODAY_HIGH) + " Low: " + weather.getString(KEY_TODAY_LOW) + " Cond: " + weather.getInt(KEY_TODAY_COND));
+            mLastUpdateInstant = mCalendar.getTimeInMillis();
+            invalidate();
         }
 
         private void loadBitmapFromAsset(Asset asset) {
@@ -449,24 +476,18 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
             pendingResult.setResultCallback(new ResultCallback<DataApi.GetFdForAssetResult>() {
                 @Override
                 public void onResult(DataApi.GetFdForAssetResult getFdForAssetResult) {
-                    if(getFdForAssetResult.getStatus().isSuccess())
-                    {
+                    if (getFdForAssetResult.getStatus().isSuccess()) {
                         Log.d(LOG_TAG, "Decoding asset!");
                         InputStream inputStream = getFdForAssetResult.getInputStream();
-                        if(inputStream != null)
-                        {
+                        if (inputStream != null) {
                             Bitmap icon = BitmapFactory.decodeStream(inputStream);
                             float scaleWidth = (mIconSize / icon.getHeight()) * icon.getWidth();
                             mIcon = Bitmap.createScaledBitmap(icon, (int) scaleWidth, (int) mIconSize, true);
                             invalidate();
-                        }
-                        else
-                        {
+                        } else {
                             Log.e(LOG_TAG, "No input stream for decoding asset");
                         }
-                    }
-                    else
-                    {
+                    } else {
                         Log.e(LOG_TAG, "Error getting icon from asset: " + getFdForAssetResult.getStatus().getStatusMessage());
                     }
                 }

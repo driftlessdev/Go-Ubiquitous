@@ -129,6 +129,7 @@ public class WearUpdateService extends IntentService
         if(!data.moveToFirst())
         {
             data.close();
+            Log.d(LOG_TAG, "No weather information received");
             return;
         }
 
@@ -142,8 +143,10 @@ public class WearUpdateService extends IntentService
         double low = data.getDouble(COL_WEATHER_MIN_TEMP);
         String lowString = Utility.formatTemperature(context, low);
 
-        PutDataMapRequest putDataMapRequest = PutDataMapRequest.create(PATH_WEATHER_UPDATE);
+        PutDataMapRequest putDataMapRequest = PutDataMapRequest.create(PATH_WEATHER_UPDATE).setUrgent();
         DataMap weather = putDataMapRequest.getDataMap();
+
+        Log.d(LOG_TAG, "Weather Data: H:" + highString + " L:" + lowString + " ID:" + weatherId);
 
         weather.putString(KEY_TODAY_HIGH, highString);
         weather.putString(KEY_TODAY_LOW, lowString);
