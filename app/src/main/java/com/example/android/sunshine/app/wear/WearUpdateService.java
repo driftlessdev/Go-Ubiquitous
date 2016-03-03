@@ -4,6 +4,8 @@ import android.app.IntentService;
 import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.util.Log;
 
@@ -12,12 +14,14 @@ import com.example.android.sunshine.app.data.WeatherContract;
 import com.example.android.sunshine.app.sync.SunshineSyncAdapter;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.wearable.Asset;
 import com.google.android.gms.wearable.DataApi;
 import com.google.android.gms.wearable.DataMap;
 import com.google.android.gms.wearable.PutDataMapRequest;
 import com.google.android.gms.wearable.PutDataRequest;
 import com.google.android.gms.wearable.Wearable;
 
+import java.io.ByteArrayOutputStream;
 import java.util.Calendar;
 
 /**
@@ -35,6 +39,7 @@ public class WearUpdateService extends IntentService
     public static final String KEY_TODAY_HIGH = "HighToday";
     public static final String KEY_TODAY_LOW = "LowToday";
     public static final String KEY_TODAY_COND = "CondToday";
+    public static final String KEY_TODAY_ICON = "IconToday";
 
     private static final String[] WEAR_COLUMNS = {
             WeatherContract.WeatherEntry.TABLE_NAME + "." + WeatherContract.WeatherEntry._ID,
@@ -128,6 +133,10 @@ public class WearUpdateService extends IntentService
         }
 
         int weatherId = data.getInt(COL_WEATHER_CONDITION_ID);
+        int defaultImage = Utility.getIconResourceForWeatherCondition(weatherId);
+        Bitmap bitmap = BitmapFactory.decodeResource(getResources(), defaultImage);
+        Asset asset = createAssetFromBitmap(bitmap);
+
         double high = data.getDouble(COL_WEATHER_MAX_TEMP);
         String highString = Utility.formatTemperature(context, high);
         double low = data.getDouble(COL_WEATHER_MIN_TEMP);
@@ -138,6 +147,7 @@ public class WearUpdateService extends IntentService
 
         weather.putString(KEY_TODAY_HIGH, highString);
         weather.putString(KEY_TODAY_LOW, lowString);
+        weather.putAsset(KEY_TODAY_ICON, asset);
         weather.putInt(KEY_TODAY_COND, weatherId);
 
         PutDataRequest putDataRequest = putDataMapRequest.asPutDataRequest();
@@ -148,5 +158,11 @@ public class WearUpdateService extends IntentService
         } else {
             Log.e(LOG_TAG, "Data failed: " + dataItemResult.toString());
         }
+    }
+
+    private static Asset createAssetFromBitmap(Bitmap bitmap) {
+        final ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, byteStream);
+        return Asset.createFromBytes(byteStream.toByteArray());
     }
 }

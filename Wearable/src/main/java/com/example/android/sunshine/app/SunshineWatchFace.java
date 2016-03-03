@@ -21,6 +21,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.res.Resources;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -38,15 +40,19 @@ import android.view.WindowInsets;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.PendingResult;
 import com.google.android.gms.common.api.ResultCallback;
+import com.google.android.gms.wearable.Asset;
 import com.google.android.gms.wearable.DataApi;
 import com.google.android.gms.wearable.DataEvent;
 import com.google.android.gms.wearable.DataEventBuffer;
 import com.google.android.gms.wearable.DataMap;
+import com.google.android.gms.wearable.DataMapItem;
 import com.google.android.gms.wearable.MessageApi;
 import com.google.android.gms.wearable.MessageEvent;
 import com.google.android.gms.wearable.Wearable;
 
+import java.io.InputStream;
 import java.lang.ref.WeakReference;
 import java.text.SimpleDateFormat;
 import java.util.GregorianCalendar;
@@ -66,6 +72,7 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
     public static final String KEY_TODAY_HIGH = "HighToday";
     public static final String KEY_TODAY_LOW = "LowToday";
     public static final String KEY_TODAY_COND = "CondToday";
+    public static final String KEY_TODAY_ICON = "IconToday";
 
     /**
      * Update rate in milliseconds for interactive mode. We update once a second since seconds are
@@ -137,6 +144,7 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
 
         String mHigh = "00";
         String mLow = "00";
+        Bitmap mIcon;
 
         /**
          * Whether the display supports fewer bits for each color in ambient mode. When true, we
@@ -325,6 +333,13 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
             x = centerX + tempWidth/2 + textOffset / 2;
             y = centerY + textOffset * 2 - mLowYOffset;
             canvas.drawText(mLow, x, y, mLowPaint);
+
+            if(mIcon != null)
+            {
+                canvas.drawBitmap(mIcon, centerX, centerY, null);
+            }
+
+
         }
 
         /**
@@ -413,13 +428,51 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
                 String path = uri.getPath();
                 if(PATH_WEATHER_UPDATE.equals(path))
                 {
-                    DataMap weather = DataMap.fromByteArray(event.getDataItem().getData());
+                    DataMapItem dataMapItem = DataMapItem.fromDataItem(event.getDataItem());
+                    DataMap weather = dataMapItem.getDataMap();
                     mHigh = weather.getString(KEY_TODAY_HIGH);
                     mLow = weather.getString(KEY_TODAY_LOW);
+                    Asset icon = weather.getAsset(KEY_TODAY_ICON);
+                    loadBitmapFromAsset(icon);
                     Log.d(LOG_TAG, "High: " + weather.getString(KEY_TODAY_HIGH) + " Low: " + weather.getString(KEY_TODAY_LOW) + " Cond: " + weather.getInt(KEY_TODAY_COND));
                     invalidate();
                 }
             }
+        }
+
+        private void loadBitmapFromAsset(Asset asset) {
+            if (asset == null) {
+                throw new IllegalArgumentException("Asset must be non-null");
+            }
+
+            if (!mGoogleApiClient.isConnected()) {
+                return;
+            }
+            // convert asset into a file descriptor and block until it's ready
+            PendingResult<DataApi.GetFdForAssetResult> pendingResult = Wearable.DataApi.getFdForAsset(mGoogleApiClient, asset);
+            pendingResult.setResultCallback(new ResultCallback<DataApi.GetFdForAssetResult>() {
+                @Override
+                public void onResult(DataApi.GetFdForAssetResult getFdForAssetResult) {
+                    if(getFdForAssetResult.getStatus().isSuccess())
+                    {
+                        Log.d(LOG_TAG, "Decoding asset!");
+                        InputStream inputStream = getFdForAssetResult.getInputStream();
+                        if(inputStream != null)
+                        {
+                            mIcon = BitmapFactory.decodeStream(inputStream);
+                            invalidate();
+                        }
+                        else
+                        {
+                            Log.e(LOG_TAG, "No input stream for decoding asset");
+                        }
+                    }
+                    else
+                    {
+                        Log.e(LOG_TAG, "Error getting icon from asset: " + getFdForAssetResult.getStatus().getStatusMessage());
+                    }
+                }
+            });
         }
     }
 }
