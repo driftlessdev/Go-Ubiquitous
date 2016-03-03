@@ -317,24 +317,25 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
             String timeText = mTimeFormat.format(mCalendar.getTime());
             float timeWidth = mTextPaint.measureText(timeText);
             float x = centerX - timeWidth / 2;
-            float y = centerY + (mDateYOffset * 2) + mTimeYOffset - textOffset * 2;
+            float y = centerY - mTimeYOffset;
             canvas.drawText(timeText, x, y, mTextPaint);
 
             String dateText = mDateFormat.format(mCalendar.getTime());
             float dateWidth = mDatePaint.measureText(dateText);
             x = centerX - dateWidth / 2;
-            y = centerY - textOffset + mDateYOffset;
+            y = height * 0.25f - mDateYOffset;
             canvas.drawText(dateText, x, y, mDatePaint);
 
             float baseY = height * 0.75f - mBottomInsetHeight;
 
             float tempWidth = mHighPaint.measureText(mHigh);
-            x = centerX - tempWidth - tempWidth / 2 - textOffset / 2;
+            x = centerX - mIconSize / 2 - tempWidth - textOffset;
             y = baseY - mHighYOffset;
+            Log.d(LOG_TAG, "X: " + x + " Y: " + y);
             canvas.drawText(mHigh, x, y, mHighPaint);
 
             tempWidth = mLowPaint.measureText(mLow);
-            x = centerX + tempWidth/2 + textOffset / 2;
+            x = centerX + mIconSize / 2 + textOffset;
             y = baseY - mLowYOffset;
             canvas.drawText(mLow, x, y, mLowPaint);
 
